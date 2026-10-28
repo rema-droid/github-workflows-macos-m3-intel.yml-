@@ -1,0 +1,38 @@
+name: macOS M3 + Intel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show macOS and architecture details
+        shell: bash
+        run: |
+          echo "Runner label: ${{ matrix.runner }}"
+          uname -m
+          sw_vers
+          xcode-select -p
+
+      - name: Verify architecture
+        shell: bash
+        run: |
+          arch=$(uname -m)
+          if [[ "$arch" == "arm64" ]]; then
+            echo "Apple Silicon (M-series) runner detected"
+          else
+            echo "Intel runner detected"
+          fi
