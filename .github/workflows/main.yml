@@ -1,38 +1,33 @@
-name: macOS M3 + Intel
+name: Free macOS Workspace
 
-on:
+on: 
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   build:
-    name: ${{ matrix.runner }}
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [macos-15, macos-15-intel]
-
+    runs-on: macos-13 # Standard queue
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+    - name: Set up Remote Desktop and VNC
+      run: |
+        sudo dscl . -passwd /Users/runner "Password123!"
+        sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+          -activate -configure -access -on \
+          -clientopts -setvncpasswd -vncpasswd "Password123!" \
+          -privs -all -restart -agent
 
-      - name: Show macOS and architecture details
-        shell: bash
-        run: |
-          echo "Runner label: ${{ matrix.runner }}"
-          uname -m
-          sw_vers
-          xcode-select -p
+    - name: Install and Configure ngrok
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      run: |
+        brew install ngrok
+        ngrok config add-authtoken $NGROK_AUTH_TOKEN
 
-      - name: Verify architecture
-        shell: bash
-        run: |
-          arch=$(uname -m)
-          if [[ "$arch" == "arm64" ]]; then
-            echo "Apple Silicon (M-series) runner detected"
-          else
-            echo "Intel runner detected"
-          fi
+    - name: Start Tunnel and Keep VM Alive
+      run: |
+        echo "Starting network tunnel..."
+        ngrok tcp 5900 --log=stdout &
+        sleep 5
+        curl -s http://localhost:4040/api/tunnels | grep -o 'tcp://[^"]*'
+        echo "VM is running. You can connect now."
+        sleep 21600
+
